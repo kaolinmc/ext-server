@@ -1,0 +1,9 @@
+{
+  "name": "Test repository",
+  "description": "A cool repository",
+  "icon": null,
+  "extension_count": 0,
+  "app_ids": [
+    "test!"
+  ]
+}
