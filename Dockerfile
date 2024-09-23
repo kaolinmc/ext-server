@@ -30,7 +30,6 @@ RUN cargo install --path basic-impl --target-dir /app/bin
 FROM debian:bullseye-slim
 
 COPY --from=build /app/bin/release/basic-impl /app/bin/basic-impl
-COPY basic-impl/Rocket.toml ./basic-impl/Rocket.toml
 
 RUN apt-get update
 RUN apt-get install pkg-config -y
