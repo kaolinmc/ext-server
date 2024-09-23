@@ -60,6 +60,7 @@ async fn main() {
         .mount("/", ExtensionFileServer)
         .mount("/", ExtensionMetadataServer)
         .mount("/", ExtensionSearchServer)
+        .mount("/", routes![home])
         .manage(Arc::new(Mutex::new(Box::new(BasicAuth) as Box<dyn Authorizer>)))
         .manage(MetadataHandler::hydrate_cache("data/metadata.json").unwrap())
         .manage(repository_metadata)
@@ -71,4 +72,9 @@ async fn main() {
 
     let search_handler: &Arc<Mutex<SearchHandler<ExtensionIdentifier>>> = rocket.state().unwrap();
     search_handler.lock().unwrap().persist_to("data/search_index.json").unwrap();
+}
+
+#[get("/")]
+fn home() -> &'static str {
+    "You've found the basic implementation of the extframework ext-server! Go to https://github.com/extframework/ext-server to check it out."
 }
