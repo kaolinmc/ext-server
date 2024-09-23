@@ -29,7 +29,7 @@ RUN cargo install --path basic-impl --target-dir /app/bin
 
 FROM debian:bullseye-slim
 
-COPY --from=build /app/bin/release/basic-impl /app/data/
+COPY --from=build /app/bin/release/basic-impl /app/bin/basic-impl
 COPY basic-impl/Rocket.toml ./basic-impl/Rocket.toml
 
 RUN apt-get update
@@ -41,4 +41,4 @@ RUN apt-get install apt-transport-https ca-certificates gnupg curl -y
 EXPOSE $PORT
 
 WORKDIR /app/data
-ENTRYPOINT ["/app/data/basic-impl"]
+ENTRYPOINT ["/app/bin/basic-impl"]
