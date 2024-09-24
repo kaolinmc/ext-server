@@ -11,7 +11,8 @@ use crate::types::VersionType::Release;
 pub struct ExtensionBundle<T: Read> {
     pub runtime_model: ExtensionRuntimeModel,
     pub metadata: ExtensionMetadata,
-    pub partitions: Vec<(T, PartitionRuntimeModel)>,
+    pub partitions: Vec<PartitionRuntimeModel>,
+    pub files: Vec<(T, String)>
 }
 
 #[derive(PartialEq)]

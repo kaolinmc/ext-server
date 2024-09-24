@@ -1,4 +1,4 @@
-V1.0
+V0.1.1
 
 # Prerequisites
 
@@ -120,12 +120,13 @@ The following is the standard error response for all conforming repositories. Al
 # Extension Bundle
 
 An extension bundle is a packaged extension used to push all contents to the repository at once for verification. The bundle conceptually is simply an archived (.zip) file with the following contents (internal paths must match as defined here):
+All items will be added into the directory of the registry in a maven like pattern where the actual name in the bundle becomes the classifier and type of the file.
  - /erm.json *required
    - All partitions defined in the ERM must have an associated partition in the partitions directory. Partitions not defined in the ERM will not be published.
- - /metadata.json *required
- - /partitions
-   - /\<partition>.jar
-   - /\<partition>.json
+ - /metadata.json *required 
+ - /\<partition>.jar
+ - /\<partition>.json
+ - /\<classifier>.\<type> - for example could be checksums. 
 
 
 # Extension Runtime Model

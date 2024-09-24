@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io;
-use std::io::{Read, Seek};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use rocket::{get, put, Route, routes, State};
@@ -11,6 +11,7 @@ use rocket::http::hyper::Version;
 use rocket::http::Status;
 use rocket::response::status;
 use rocket::route::{Cloneable, Handler, Outcome};
+use serde::de::Unexpected::Str;
 use tempfile::{NamedTempFile, tempfile, tempfile_in};
 use tokio::fs::create_dir_all;
 use zip::read::ZipFile;
@@ -22,7 +23,6 @@ use crate::metadata::MetadataHandler;
 use crate::responses::{HandlerError, HttpResult};
 use crate::search::ExtensionSearchHandler;
 use crate::types::{ExtensionBundle, ExtensionIdentifier, ExtensionMetadata, ExtensionRuntimeModel, PartitionRuntimeModel, VersionType};
-
 
 #[derive(Debug, Clone)]
 pub struct ExtensionFileServer;
@@ -75,7 +75,7 @@ async fn put_object(
 
     data.persist_to(&file).await?;
 
-    let mut bundle: ExtensionBundle<File> = build_bundle_from(File::open(file)?).await?;
+    let mut bundle = build_bundle_from(File::open(file)?).await?;
     validate_bundle(&bundle)?;
 
     let path = bundle.runtime_model.group_id.split(".").fold(PathBuf::from("static/"), |acc, it| {
@@ -101,14 +101,14 @@ async fn put_object(
     handler.index(
         metadata.name.as_str(),
         identifier.clone(),
-        10
+        10,
     )?;
 
     // Description will arbitrarily index with lower ranks.
     handler.index(
         metadata.description.as_str(),
         identifier.clone(),
-        1
+        1,
     )?;
 
     Ok(())
@@ -125,7 +125,7 @@ impl From<ZipError> for HandlerError {
 
 async fn build_bundle_from(
     read: impl Read + Seek
-) -> HttpResult<ExtensionBundle<File>> {
+) -> HttpResult<ExtensionBundle<Cursor<Vec<u8>>>> {
     let mut zip = ZipArchive::new(read)?;
 
     let runtime_model = zip.by_name("erm.json").map_err(|e| {
@@ -158,8 +158,8 @@ async fn build_bundle_from(
         )
     })?;
 
-    let partitions = runtime_model.partitions.iter().map(|partition_ref| -> HttpResult<(File, PartitionRuntimeModel)> {
-        let prm = zip.by_name(format!("partitions/{}.json", partition_ref.name).as_str()).map_err(|e| {
+    let partitions = runtime_model.partitions.iter().map(|partition_ref| -> HttpResult<PartitionRuntimeModel> {
+        let prm = zip.by_name(format!("{}.json", partition_ref.name).as_str()).map_err(|e| {
             if let ZipError::FileNotFound = e {
                 HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.json'", part = partition_ref.name).into(), Status::BadRequest)
             } else {
@@ -173,24 +173,27 @@ async fn build_bundle_from(
                 Status::BadRequest,
             )
         })?;
-
-        let mut jar = zip.by_name(format!("partitions/{}.jar", partition_ref.name).as_str()).map_err(|e| {
+        if let Err(e) = zip.by_name(format!("{}.jar", partition_ref.name).as_str()) {
             if let ZipError::FileNotFound = e {
-                HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.jar'", part = partition_ref.name).into(), Status::BadRequest)
-            } else {
-                e.into()
-            }
-        })?;
-        let mut file = tempfile()?;
-        io::copy(&mut jar, &mut file)?;
+                return Err(HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.jar'", part = partition_ref.name).into(), Status::BadRequest));
+            };
+        };
 
-        Ok((file, prm))
-    }).collect::<HttpResult<Vec<(File, PartitionRuntimeModel)>>>()?;
+        Ok(prm)
+    }).collect::<HttpResult<Vec<PartitionRuntimeModel>>>()?;
 
     Ok(ExtensionBundle {
         runtime_model,
         metadata,
         partitions,
+        files: (0..zip.len()).map(|it| {
+            let mut file = zip.by_index(it)?;
+            let mut cursor = Cursor::new(Vec::new());
+
+            io::copy(&mut file, &mut cursor)?;
+
+            Ok::<(Cursor<Vec<u8>>, String), HandlerError>((cursor, file.name().to_string()))
+        }).collect::<HttpResult<Vec<_>>>()?,
     })
 }
 
@@ -218,58 +221,35 @@ impl From<io::Error> for HandlerError {
 
 async fn write_bundle(
     path: PathBuf,
-    bundle: &mut ExtensionBundle<impl Read>,
+    bundle: &mut ExtensionBundle<impl Read + Seek>,
 ) -> HttpResult<()> {
     create_dir_all(&path).await?;
 
-    let erm_file = path.join(
-        format!(
-            "{}-{}-erm.json",
-            bundle.runtime_model.name,
-            bundle.runtime_model.version
-        )
-    );
+    for (read, name) in bundle.files.iter_mut() {
+        let file_path =
+            path.join(
+                if !name.starts_with(".") {
+                    format!(
+                        "{}-{}-{}",
+                        bundle.runtime_model.name,
+                        bundle.runtime_model.version,
+                        name,
+                    )
+                } else {
+                    format!(
+                        "{}-{}{}",
+                        bundle.runtime_model.name,
+                        bundle.runtime_model.version,
+                        name
+                    )
+                }
+            );
 
-    std::fs::write(
-        erm_file,
-        &serde_json::to_vec(&bundle.runtime_model).unwrap(),
-    )?;
-
-    let metadata_file = path.join(
-        format!(
-            "{}-{}-metadata.json",
-            bundle.runtime_model.name,
-            bundle.runtime_model.version
-        )
-    );
-    std::fs::write(
-        metadata_file,
-        serde_json::to_vec(&bundle.metadata).unwrap(),
-    )?;
-
-    for (ref mut read, ref model) in bundle.partitions.iter_mut() {
-        let json_path = path.join(
-            format!(
-                "{}-{}-{}.json",
-                bundle.runtime_model.name,
-                bundle.runtime_model.version,
-                model.name
-            )
-        );
-        let jar_path = path.join(
-            format!(
-                "{}-{}-{}.jar",
-                bundle.runtime_model.name,
-                bundle.runtime_model.version,
-                model.name
-            )
-        );
-
+        read.seek(SeekFrom::Start(0)).expect("Failed to seek");
         let mut contents: Vec<u8> = Vec::new();
         read.read_to_end(&mut contents)?;
 
-        std::fs::write(json_path, serde_json::to_vec(&model).unwrap())?;
-        std::fs::write(jar_path, contents)?;
+        std::fs::write(file_path, contents)?;
     }
 
     Ok(())
@@ -339,10 +319,10 @@ mod tests {
             zip.start_file("metadata.json", SimpleFileOptions::default()).unwrap();
             zip.write_all(serde_json::to_vec(&metadata).unwrap().deref()).unwrap();
 
-            zip.start_file("partitions/test1.json", SimpleFileOptions::default()).unwrap();
+            zip.start_file("test1.json", SimpleFileOptions::default()).unwrap();
             zip.write_all(serde_json::to_vec(&partition_test1_prm).unwrap().deref()).unwrap();
 
-            zip.start_file("partitions/test1.jar", SimpleFileOptions::default()).unwrap();
+            zip.start_file("test1.jar", SimpleFileOptions::default()).unwrap();
             zip.write_all("Hey this isnt a jar, but its close enough".as_bytes()).unwrap();
 
             zip.finish().unwrap();

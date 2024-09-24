@@ -102,7 +102,7 @@ mod tests {
                 .manage(RepositoryMetadata {
                     name: "A test repository".to_string(),
                     description: "A cool description".to_string(),
-                    icons: Default::default(),
+                    icon: Default::default(),
                     extension_count: 0,
                     app_ids: vec![],
                 })
@@ -126,7 +126,7 @@ mod tests {
                 .manage(RepositoryMetadata {
                     name: "A test repository".to_string(),
                     description: "A cool description".to_string(),
-                    icons: Default::default(),
+                    icon: Default::default(),
                     extension_count: 0,
                     app_ids: vec![],
                 })
