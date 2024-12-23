@@ -41,7 +41,7 @@ impl VersionType {
             let suffix = suffix.to_lowercase();
             match suffix.as_str() {
                 "beta" => Ok(VersionType::Beta),
-                "rc" => Ok(VersionType::Release),
+                "rc" => Ok(VersionType::ReleaseCandidate),
                 _ => Err(HandlerError::new(
                     "Invalid extension version".into(),
                     Some("Extension version suffix is invalid, must either end in '', '-BETA', or '-RC".into()),

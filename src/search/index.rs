@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use rocket::futures::SinkExt;
-
+use rocket::http::hyper::body::HttpBody;
 use rocket::serde::Serialize;
 use serde::Deserialize;
 
@@ -31,8 +31,6 @@ pub struct IndexNode<T> {
     path: String,
     rank: Vec<(T, u8)>,
     children: HashMap<char, Box<IndexNode<T>>>,
-
-    empty_vec: Vec<(T, u8)>,
 }
 
 impl<T> IndexNode<T> {
@@ -41,7 +39,6 @@ impl<T> IndexNode<T> {
             path: "".to_string(),
             rank: vec![],
             children: Default::default(),
-            empty_vec: vec![],
         }
     }
 
@@ -49,9 +46,20 @@ impl<T> IndexNode<T> {
     pub fn find(
         &self,
         token: &str,
-    ) -> &Vec<(T, u8)> {
+    ) -> Vec<&(T, u8)> {
         if token == "" {
-            return &self.rank;
+            let mut this_rank: Vec<&(T, u8)> = self.rank.iter().collect();
+
+            self.children
+                .iter()
+                .flat_map(|(c, child)| {
+                    child.find("")
+                })
+                .for_each(|val| {
+                    this_rank.push(val);
+                });
+
+            return this_rank;
         }
 
         let first_char = token.chars().next().unwrap();
@@ -60,36 +68,21 @@ impl<T> IndexNode<T> {
             .get(&first_char)
             .map(|t| {
                 t.find(&token[1..])
-            }).unwrap_or(&self.empty_vec)
+            }).unwrap_or_else(Vec::new)
     }
-
-    // pub fn find_all(
-    //     &self,
-    //     token: &str,
-    // ) -> Vec<(T, u8)> {
-    //     let result = Vec::new();
-    //
-    //     if token == "" {
-    //         result.append(self.rank.clone())
-    //         return &self.rank;
-    //     }
-    //
-    //     let first_char = token.chars().next().unwrap();
-    //
-    //     self.children
-    //         .get(&first_char)
-    //         .map(|t| {
-    //             t.find(&token[1..])
-    //         }).unwrap_or(&self.empty_vec)
-    // }
 
     pub fn insert(
         &mut self,
         token: &str,
         value: T,
         rank: u8,
-    ) {
-        if token == "" {
+    )
+    where
+        T: PartialEq,
+    {
+        if token == "" && !self.rank.iter().any(|it| {
+            it.0 == value
+        }) {
             self.rank.push((value, rank));
         } else {
             let first_char = token.chars().next().unwrap();
@@ -99,14 +92,12 @@ impl<T> IndexNode<T> {
                     path: format!("{}{}", self.path, first_char),
                     rank: vec![],
                     children: Default::default(),
-                    empty_vec: vec![],
                 }));
             }
 
-            self.children.get_mut(&first_char)
-                .map(|t| {
-                    t.insert(&token[1..], value, rank)
-                });
+            if let Some(t) = self.children.get_mut(&first_char) {
+                t.insert(&token[1..], value, rank)
+            }
         }
     }
 }

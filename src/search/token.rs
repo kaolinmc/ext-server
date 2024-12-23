@@ -42,6 +42,10 @@ impl WordTokenizer {
             .map(|t| t.clone())
             .collect();
 
+        if tokens.len() == 0 {
+            return Ok(vec!["".to_string()])
+        }
+
         Ok(tokens)
     }
 

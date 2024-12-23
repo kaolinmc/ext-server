@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "ext-server"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "rocket",
  "rust-stemmers",

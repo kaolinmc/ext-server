@@ -38,7 +38,7 @@ where
 
     fn group_by<A, K, F>(items: Vec<A>, key_fn: F) -> HashMap<K, Vec<A>>
     where
-        K: Eq + std::hash::Hash,
+        K: Eq + Hash,
         F: Fn(&A) -> K,
     {
         let mut map = HashMap::new();
@@ -63,9 +63,9 @@ where
             t.0.clone()
         });
 
-        let mut result: Vec<(u8, &T)> = result.iter().map(|t| {
-            (t.1.iter().fold(0, |acc, it| {
-                acc + it.1
+        let mut result: Vec<(u128, &T)> = result.iter().map(|t| {
+            (t.1.iter().fold(0u128, |acc, it| {
+                (acc) + (it.1 as u128)
             }), t.0)
         }).collect();
         result.sort_by_key(|t| t.0);

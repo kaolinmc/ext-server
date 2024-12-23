@@ -99,7 +99,6 @@ V0.1.1
 }
 ```
 
-
 ### /registry
 
 A successful request will simply return a 200 code. 

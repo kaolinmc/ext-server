@@ -200,6 +200,8 @@ async fn build_bundle_from(
 fn validate_bundle<'a>(
     extension_bundle: &ExtensionBundle<impl Read>
 ) -> HttpResult<()> {
+    VersionType::classify(&extension_bundle.runtime_model.version)?;
+
     Ok(())
 }
 
