@@ -80,10 +80,12 @@ impl<T> IndexNode<T> {
     where
         T: PartialEq,
     {
-        if token == "" && !self.rank.iter().any(|it| {
-            it.0 == value
-        }) {
-            self.rank.push((value, rank));
+        if token == "" {
+            if !self.rank.iter().any(|it| {
+                it.0 == value
+            }) {
+                self.rank.push((value, rank));
+            }
         } else {
             let first_char = token.chars().next().unwrap();
 
