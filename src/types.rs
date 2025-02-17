@@ -11,7 +11,6 @@ use crate::types::VersionType::Release;
 pub struct ExtensionBundle<T: Read> {
     pub runtime_model: ExtensionRuntimeModel,
     pub metadata: ExtensionMetadata,
-    pub partitions: Vec<PartitionRuntimeModel>,
     pub files: Vec<(T, String)>
 }
 
@@ -143,15 +142,15 @@ pub struct ExtensionRuntimeModel {
     pub version: String,
     pub repositories: Vec<HashMap<String, String>>,
     pub parents: Vec<ExtensionParent>,
-    pub partitions: Vec<PartitionModelReference>,
+    pub partitions: Vec<PartitionRuntimeModel>,
 }
 
 // PartitionModelReference
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct PartitionModelReference {
-    pub r#type: String,
-    pub name: String,
-}
+// #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+// pub struct PartitionModelReference {
+//     pub r#type: String,
+//     pub name: String,
+// }
 
 // ExtensionParent
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]

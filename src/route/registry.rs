@@ -158,34 +158,33 @@ async fn build_bundle_from(
         )
     })?;
 
-    let partitions = runtime_model.partitions.iter().map(|partition_ref| -> HttpResult<PartitionRuntimeModel> {
-        let prm = zip.by_name(format!("{}.json", partition_ref.name).as_str()).map_err(|e| {
-            if let ZipError::FileNotFound = e {
-                HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.json'", part = partition_ref.name).into(), Status::BadRequest)
-            } else {
-                e.into()
-            }
-        })?;
-        let prm: PartitionRuntimeModel = serde_json::from_reader(prm).map_err(|e| {
-            HandlerError::new(
-                format!("Invalid PRM for partition '{}' packaged in Extension Bundle", partition_ref.name).into(),
-                Some(e.to_string()),
-                Status::BadRequest,
-            )
-        })?;
-        if let Err(e) = zip.by_name(format!("{}.jar", partition_ref.name).as_str()) {
-            if let ZipError::FileNotFound = e {
-                return Err(HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.jar'", part = partition_ref.name).into(), Status::BadRequest));
-            };
-        };
-
-        Ok(prm)
-    }).collect::<HttpResult<Vec<PartitionRuntimeModel>>>()?;
+    // let partitions = runtime_model.partitions.iter().map(|partition_ref| -> HttpResult<PartitionRuntimeModel> {
+    //     let prm = zip.by_name(format!("{}.json", partition_ref.name).as_str()).map_err(|e| {
+    //         if let ZipError::FileNotFound = e {
+    //             HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.json'", part = partition_ref.name).into(), Status::BadRequest)
+    //         } else {
+    //             e.into()
+    //         }
+    //     })?;
+    //     let prm: PartitionRuntimeModel = serde_json::from_reader(prm).map_err(|e| {
+    //         HandlerError::new(
+    //             format!("Invalid PRM for partition '{}' packaged in Extension Bundle", partition_ref.name).into(),
+    //             Some(e.to_string()),
+    //             Status::BadRequest,
+    //         )
+    //     })?;
+    //     if let Err(e) = zip.by_name(format!("{}.jar", partition_ref.name).as_str()) {
+    //         if let ZipError::FileNotFound = e {
+    //             return Err(HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.jar'", part = partition_ref.name).into(), Status::BadRequest));
+    //         };
+    //     };
+    //
+    //     Ok(prm)
+    // }).collect::<HttpResult<Vec<PartitionRuntimeModel>>>()?;
 
     Ok(ExtensionBundle {
         runtime_model,
         metadata,
-        partitions,
         files: (0..zip.len()).map(|it| {
             let mut file = zip.by_index(it)?;
             let mut cursor = Cursor::new(Vec::new());
@@ -259,7 +258,7 @@ async fn write_bundle(
 
 #[cfg(test)]
 mod tests {
-    use std::fs::{File, read};
+    use std::fs::{File, read, exists};
     use std::fs;
     use std::io::Write;
     use std::ops::Deref;
@@ -275,9 +274,17 @@ mod tests {
     use crate::metadata::MetadataHandler;
     use crate::route::registry::ExtensionFileServer;
     use crate::search::search::SearchHandler;
-    use crate::types::{ExtensionIdentifier, ExtensionMetadata, ExtensionRuntimeModel, PartitionModelReference, PartitionRuntimeModel};
+    use crate::types::{ExtensionIdentifier, ExtensionMetadata, ExtensionRuntimeModel, PartitionRuntimeModel};
 
     async fn make_zip() -> PathBuf {
+        let partition_test1_prm = PartitionRuntimeModel {
+            r#type: "test".into(),
+            name: "test1".into(),
+            repositories: vec![],
+            dependencies: vec![],
+            options: Default::default(),
+        };
+
         let erm = ExtensionRuntimeModel {
             api_version: 0,
             group_id: "com.example".into(),
@@ -286,10 +293,7 @@ mod tests {
             repositories: vec![],
             parents: vec![],
             partitions: vec![
-                PartitionModelReference {
-                    r#type: "test".into(),
-                    name: "test1".into(),
-                }
+                partition_test1_prm.clone()
             ],
         };
 
@@ -302,16 +306,11 @@ mod tests {
             app: "test".into(),
         };
 
-        let partition_test1_prm = PartitionRuntimeModel {
-            r#type: "test".into(),
-            name: "test1".into(),
-            repositories: vec![],
-            dependencies: vec![],
-            options: Default::default(),
-        };
 
         if !Path::new("test/test.zip").exists() {
-            fs::create_dir("test").unwrap();
+            if !exists("dir").unwrap() {
+                fs::create_dir("test").unwrap();
+            }
             let file = File::create("test/test.zip").unwrap();
             let mut zip = ZipWriter::new(file);
 
