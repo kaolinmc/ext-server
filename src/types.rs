@@ -143,6 +143,7 @@ pub struct ExtensionRuntimeModel {
     pub repositories: Vec<HashMap<String, String>>,
     pub parents: Vec<ExtensionParent>,
     pub partitions: Vec<PartitionRuntimeModel>,
+    pub attributes: HashMap<String, String>,
 }
 
 // PartitionModelReference

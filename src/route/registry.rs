@@ -142,7 +142,6 @@ async fn build_bundle_from(
             Status::BadRequest,
         )
     })?;
-
     let metadata = zip.by_name("metadata.json").map_err(|e| {
         if let ZipError::FileNotFound = e {
             HandlerError::new("Invalid extension bundle".into(), Some("No metadata.json present in the bundle.".into()), Status::BadRequest)
@@ -157,30 +156,6 @@ async fn build_bundle_from(
             Status::BadRequest,
         )
     })?;
-
-    // let partitions = runtime_model.partitions.iter().map(|partition_ref| -> HttpResult<PartitionRuntimeModel> {
-    //     let prm = zip.by_name(format!("{}.json", partition_ref.name).as_str()).map_err(|e| {
-    //         if let ZipError::FileNotFound = e {
-    //             HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.json'", part = partition_ref.name).into(), Status::BadRequest)
-    //         } else {
-    //             e.into()
-    //         }
-    //     })?;
-    //     let prm: PartitionRuntimeModel = serde_json::from_reader(prm).map_err(|e| {
-    //         HandlerError::new(
-    //             format!("Invalid PRM for partition '{}' packaged in Extension Bundle", partition_ref.name).into(),
-    //             Some(e.to_string()),
-    //             Status::BadRequest,
-    //         )
-    //     })?;
-    //     if let Err(e) = zip.by_name(format!("{}.jar", partition_ref.name).as_str()) {
-    //         if let ZipError::FileNotFound = e {
-    //             return Err(HandlerError::new("Invalid extension bundle".into(), format!("Partition {part} defined, however failed to find the file 'partitions/{part}.jar'", part = partition_ref.name).into(), Status::BadRequest));
-    //         };
-    //     };
-    //
-    //     Ok(prm)
-    // }).collect::<HttpResult<Vec<PartitionRuntimeModel>>>()?;
 
     Ok(ExtensionBundle {
         runtime_model,
@@ -203,13 +178,6 @@ fn validate_bundle<'a>(
 
     Ok(())
 }
-
-// fn into_ise<T>(inner: T) -> status::Custom<T> {
-//     status::Custom(
-//         Status::InternalServerError,
-//         inner,
-//     )
-// }
 
 impl From<io::Error> for HandlerError {
     fn from(value: io::Error) -> Self {
@@ -295,6 +263,7 @@ mod tests {
             partitions: vec![
                 partition_test1_prm.clone()
             ],
+            attributes: Default::default(),
         };
 
         let metadata = ExtensionMetadata {
