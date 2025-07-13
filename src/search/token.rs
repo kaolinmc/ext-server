@@ -6,7 +6,7 @@ pub struct WordTokenizer(Tokenizer, &'static str);
 
 impl WordTokenizer {
     pub fn new() -> Result<WordTokenizer, tokenizers::Error> {
-        let tokenizer = Tokenizer::from_pretrained("bert-base-uncased", None)?;
+        let tokenizer = Tokenizer::from_file("models/bert-base-uncased/tokenizer.json")?;
         Ok(WordTokenizer(
             tokenizer,
             "##",
