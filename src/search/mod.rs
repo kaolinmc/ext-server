@@ -12,16 +12,16 @@ pub mod search;
 
 #[derive(Debug)]
 pub enum SearchError {
-    TokenizationError,
+    TokenizationError(tokenizers::Error),
     IoError(io::Error)
 }
 
 impl From<SearchError> for HandlerError {
     fn from(value: SearchError) -> Self {
         match value {
-            SearchError::TokenizationError =>  HandlerError::new(
+            SearchError::TokenizationError(e) =>  HandlerError::new(
                 "Internal search error".into(),
-                Some("Failed to tokenize input".to_string()),
+                Some(e.to_string()),
                 Status::InternalServerError
             ),
             SearchError::IoError(e) => e.into()

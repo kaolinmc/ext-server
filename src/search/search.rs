@@ -29,8 +29,8 @@ where
     pub fn new() -> Result<SearchHandler<T>, SearchError> {
         Ok(SearchHandler {
             index_node: IndexNode::new(),
-            tokenizer: WordTokenizer::new().map_err(|_| {
-                SearchError::TokenizationError
+            tokenizer: WordTokenizer::new().map_err(|e| {
+                SearchError::TokenizationError(e)
             })?,
             phantom_data: Default::default(),
         })
@@ -53,8 +53,8 @@ where
         &self,
         query: &str,
     ) -> Result<Vec<T>, SearchError> {
-        let tokens = self.tokenizer.tokenize(query).map_err(|_| {
-            SearchError::TokenizationError
+        let tokens = self.tokenizer.tokenize(query).map_err(|it| {
+            SearchError::TokenizationError(it)
         })?;
 
         let result = Self::group_by(tokens.iter().flat_map(|t| {
@@ -81,7 +81,7 @@ where
         rank: u8,
     ) -> Result<(), SearchError> {
         let tokens = self.tokenizer.tokenize(content).map_err(|e| {
-            SearchError::TokenizationError
+            SearchError::TokenizationError(e)
         })?;
 
         for token in tokens {
@@ -127,8 +127,8 @@ impl SearchHandler<ExtensionIdentifier> {
 
         Ok(SearchHandler {
             index_node: index,
-            tokenizer: WordTokenizer::new().map_err(|_| {
-                SearchError::TokenizationError
+            tokenizer: WordTokenizer::new().map_err(|it| {
+                SearchError::TokenizationError(it)
             })?,
             phantom_data: Default::default(),
         })

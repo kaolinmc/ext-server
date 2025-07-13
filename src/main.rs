@@ -1,6 +1,13 @@
 #[macro_use]
 extern crate rocket;
 
+mod auth;
+mod route;
+mod metadata;
+mod search;
+mod types;
+mod responses;
+
 use std::env;
 use std::fs::File;
 use std::ops::Deref;
@@ -11,19 +18,21 @@ use rocket::{Request, Response, Rocket};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
 
-use ext_server::auth::Authorizer;
-use ext_server::metadata::MetadataHandler;
-use ext_server::route::metadata::ExtensionMetadataServer;
-use ext_server::route::registry::ExtensionFileServer;
-use ext_server::route::search::ExtensionSearchServer;
-use ext_server::search::search::SearchHandler;
-use ext_server::types::{ExtensionIdentifier, RepositoryMetadata};
+use auth::Authorizer;
+use metadata::MetadataHandler;
+use route::metadata::ExtensionMetadataServer;
+use route::registry::ExtensionFileServer;
+use route::search::ExtensionSearchServer;
+use search::search::SearchHandler;
+use types::{ExtensionIdentifier, RepositoryMetadata};
 
-struct BasicAuth;
+struct BasicAuth(
+    String
+);
 
 impl Authorizer for BasicAuth {
     fn is_authorized(&self, request: &Request, token: &str) -> bool {
-        let real_token = env::var("AUTH_TOKEN").expect("No auth token set in 'AUTH_TOKEN'.");
+        let real_token = &self.0;
 
         real_token == token
     }
@@ -61,7 +70,7 @@ async fn main() {
         .mount("/", ExtensionMetadataServer)
         .mount("/", ExtensionSearchServer)
         .mount("/", routes![home])
-        .manage(Arc::new(Mutex::new(Box::new(BasicAuth) as Box<dyn Authorizer>)))
+        .manage(Arc::new(Mutex::new(Box::new(BasicAuth(env::var("AUTH_TOKEN").expect("No Auth Token in environment. Set with AUTH_TOKEN"))) as Box<dyn Authorizer>)))
         .manage(MetadataHandler::hydrate_cache("data/metadata.json").unwrap())
         .manage(repository_metadata)
         .manage(Arc::new(Mutex::new(SearchHandler::<ExtensionIdentifier>::hydrate_cache("data/search_index.json").unwrap())))
